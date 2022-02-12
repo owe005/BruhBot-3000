@@ -15,3 +15,6 @@ A Discord bot written in Haskell that sends "bruh" whenever someone sends "bruh"
 *ghci -> :l bruhbot3000 -> main* 
 OR
 *ghc bruhbot3000 -> run .exe*
+
+
+also remember to insert your own token or it will not run.
