@@ -6,7 +6,7 @@ A Discord bot written in Haskell that sends "bruh" whenever someone sends "bruh"
 - That's it.
 
 # Usage
-1. Create an empty folder and cd into it in command prompt.
+1. Create an empty folder and cd into it
 2. run *cabal install discord-haskell*
 3. Wait...
 4. run *cabal install unliftio-0.2.20*
