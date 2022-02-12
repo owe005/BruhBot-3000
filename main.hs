@@ -11,7 +11,7 @@ import qualified Discord.Requests as R
 main :: IO ()
 main = do 
     userFacingError <- runDiscord $ def
-             { discordToken = "Bot TOKEN"
+             { discordToken = "Bot TOKEN" -- Literally only replace "TOKEN" with the actual token. Example: "Bot 4gu43yf423y4f2uy4f.."
              , discordOnEvent = eventHandler
              , discordOnLog = \s -> TIO.putStrLn s
              , discordForkThreadForEvents = True }
