@@ -1,38 +1,125 @@
-{-# LANGUAGE OverloadedStrings #-}  
-import Control.Monad
-import Data.Text as T
-import Data.List as L
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE ViewPatterns #-}
+
+import Control.Monad (forM_, when)
+import qualified Data.ByteString as B
+import Data.Char (isDigit)
+import Data.Functor ((<&>))
+import Data.List (transpose)
+import qualified Data.Text as T
 import qualified Data.Text.IO as TIO
-import UnliftIO.Concurrent
 import Discord
-import Discord.Types
+import Discord.Interactions
 import qualified Discord.Requests as R
+import Discord.Types
+import UnliftIO (liftIO)
+import UnliftIO.Concurrent
 
 main :: IO ()
-main = do 
-    userFacingError <- runDiscord $ def
-             { discordToken = "Bot TOKEN" -- Literally only replace "TOKEN" with the actual token. Example: "Bot 4gu43yf423y4f2uy4f.."
-             , discordOnEvent = eventHandler
-             , discordOnLog = \s -> TIO.putStrLn s
-             , discordForkThreadForEvents = True }
-    TIO.putStrLn userFacingError
+main =
+  if testserverid == -1
+    then TIO.putStrLn "ERROR: modify the source and set testserverid to your serverid"
+    else interactionCommandExample
+
+testserverid :: Snowflake
+testserverid = 745725474465906732
+
+void :: DiscordHandler (Either RestCallErrorCode b) -> DiscordHandler ()
+void =
+  ( >>=
+      ( \case
+          Left e -> liftIO $ print e
+          Right _ -> return ()
+      )
+  )
+
+interactionCommandExample :: IO ()
+interactionCommandExample = do
+  tok <- TIO.readFile "./examples/auth-token.secret"
+  t <-
+    runDiscord $
+      def
+        { discordToken = tok,
+          discordOnStart = startHandler,
+          discordOnEnd = liftIO $ putStrLn "Ended",
+          discordOnEvent = eventHandler,
+          discordOnLog = \s -> TIO.putStrLn s >> TIO.putStrLn ""
+        }
+  TIO.putStrLn t
+
+startHandler :: DiscordHandler ()
+startHandler = do
+  -- Right partialGuilds <- restCall R.GetCurrentUserGuilds
+
+  let activity =
+        Activity
+          { activityName = "Haskell Hell",
+            activityType = ActivityTypeGame,
+            activityUrl = Nothing
+          }
+  let opts =
+        UpdateStatusOpts
+          { updateStatusOptsSince = Nothing,
+            updateStatusOptsGame = Just activity,
+            updateStatusOptsNewStatus = UpdateStatusOnline,
+            updateStatusOptsAFK = False
+          }
+  sendCommand (UpdateStatus opts)
+
+  chans' <- restCall $ R.GetGuildChannels testserverid
+  either
+    (const (return ()))
+    ( \chans ->
+        forM_
+          (take 1 (filter isTextChannel chans))
+          ( \channel ->
+              restCall $
+                R.CreateMessage
+                  (channelId channel)
+                  "Hello! I am fucking crazy. Help me I am written in Haskell and it is hell"
+          )
+    )
+    chans'
+
+-- | Example user command
+exampleUserCommand :: Maybe CreateApplicationCommand
+exampleUserCommand = createApplicationCommandUser "usercomm"
+
+-- | An example slash command.
+exampleSlashCommand :: Maybe CreateApplicationCommand
+exampleSlashCommand =
+  createApplicationCommandChatInput
+    "test"
+    "here is a description"
+    >>= \cac ->
+      return $
+        cac
+          { createApplicationCommandOptions =
+              Just $
+                ApplicationCommandOptionsValues
+                  [ ApplicationCommandOptionValueString
+                      "randominput"
+                      "I shall not"
+                      True
+                      (Right [Choice "firstOpt" "yay", Choice "secondOpt" "nay"])
+                  ]
+          }
 
 eventHandler :: Event -> DiscordHandler ()
 eventHandler event = case event of
-       MessageCreate m -> when (not (fromBot m) && checkForBruh m) $ do
-               void $ restCall (R.CreateMessage (messageChannelId m) "bruh")
+  MessageCreate m -> when (not (fromBot m) && isPing m) $ do
+    -- A very simple message.
+    void $ restCall (R.CreateMessage (messageChannelId m) "bruh")
 
-       _ -> return ()
+
+isTextChannel :: Channel -> Bool
+isTextChannel ChannelText {} = True
+isTextChannel _ = False
 
 fromBot :: Message -> Bool
 fromBot = userIsBot . messageAuthor
 
-checkForBruh :: Message -> Bool
-checkForBruh = ("bruh" `T.isInfixOf`) . toLower . messageContent
-
-{- Unused functionality
-
-bruhCheck :: Eq a => [a] -> [a] -> Bool
-bruhCheck a b = a `L.isInfixOf` b
-
--} 
+isPing :: Message -> Bool
+isPing = ("bruh" `T.isPrefixOf`) . T.toLower . messageContent
