@@ -78,7 +78,7 @@ startHandler = do
               restCall $
                 R.CreateMessage
                   (channelId channel)
-                  "Hello! I am fucking crazy. Help me I am written in Haskell and it is hell"
+                  "Hello!"
           )
     )
     chans'
